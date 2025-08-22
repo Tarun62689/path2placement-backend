@@ -7,30 +7,43 @@ const router = express.Router();
 /**
  * REGISTER
  * - Creates a new user in Supabase Auth
- * - Inserts an entry into profiles table with user_id
+ * - Inserts an entry into profiles table with user_id, name, phone, role, terms acceptance
  */
 router.post("/register", async (req, res) => {
-  const { email, password, name, role } = req.body;
+  const { fullName, email, phone, password, confirmPassword, agreed } = req.body;
 
   try {
-    // 1. Sign up user in Supabase Auth
+    // 1. Validate password match
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: "Passwords do not match" });
+    }
+
+    // 2. Check terms acceptance
+    if (!agreed) {
+      return res.status(400).json({ error: "You must accept the Terms & Conditions" });
+    }
+
+    // 3. Sign up user in Supabase Auth
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      phone, // optional, Supabase Auth supports phone if enabled
     });
 
     if (error) return res.status(400).json({ error: error.message });
     const user = data.user;
 
-    // 2. Insert into profiles table
+    // 4. Insert into profiles table
     if (user) {
       const { error: profileError } = await supabase
         .from("profiles")
         .insert([
           {
             user_id: user.id,
-            name: name || "",
-            role: role || "user", // default role
+            name: fullName,
+            phone: phone || "",
+            role: "student",        // default role
+            terms_accepted: agreed, // true
           },
         ]);
 
@@ -39,7 +52,7 @@ router.post("/register", async (req, res) => {
       }
     }
 
-    res.json({ user });
+    res.json({ user, message: "Registration successful" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -80,17 +93,12 @@ router.get("/profile", async (req, res) => {
   if (!token) return res.status(401).json({ error: "No token provided" });
 
   try {
-    // 1. Get user from token
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token);
+    const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
       return res.status(401).json({ error: error?.message || "Invalid token" });
     }
 
-    // 2. Fetch profile info
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("*")
@@ -110,29 +118,24 @@ router.get("/profile", async (req, res) => {
 /**
  * UPDATE PROFILE
  * - Requires Bearer token
- * - Updates profile fields (name, role, etc.)
+ * - Updates profile fields (name, role, phone, etc.)
  */
 router.put("/profile", async (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1]; // Bearer <token>
+  const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "No token provided" });
 
-  const { name, role } = req.body;
+  const { name, role, phone } = req.body;
 
   try {
-    // 1. Get user from token
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser(token);
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
 
     if (userError || !user) {
       return res.status(401).json({ error: userError?.message || "Invalid token" });
     }
 
-    // 2. Update profile
     const { data: updatedProfile, error: updateError } = await supabase
       .from("profiles")
-      .update({ name, role })
+      .update({ name, role, phone })
       .eq("user_id", user.id)
       .select()
       .single();
@@ -147,6 +150,27 @@ router.put("/profile", async (req, res) => {
   }
 });
 
+/**
+ * LOGOUT
+ * - Requires Bearer token
+ * - Signs user out (revokes refresh token)
+ */
+router.post("/logout", async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1]; // Bearer <token>
+  if (!token) return res.status(401).json({ error: "No token provided" });
+
+  try {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({ message: "Successfully logged out" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 export default router;
-
-

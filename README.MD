@@ -22,3 +22,24 @@ path2placement-backend
    └─ utils
 
 ```
+```
+path2placement-backend
+├─ package.json
+├─ README.MD
+└─ src
+   ├─ app.js
+   ├─ controllers
+   ├─ middlewares
+   ├─ ml
+   │  ├─ PlacementPrediction.py
+   │  └─ requirements.txt
+   ├─ models
+   ├─ routes
+   │  ├─ auth.js
+   │  └─ ml.js
+   ├─ server.js
+   ├─ services
+   │  └─ supabaseClient.js
+   └─ utils
+
+```
