@@ -4,6 +4,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import mlRoutes from "./routes/PlacementPrediction.js";
 import CollegeInsightsRoutes from "./routes/CollegeInsights.js";
+import CollegeFinderRoutes from "./routes/Collegefinder.js";
+import jobsRoutes from "./routes/jobs.js";
 import authRoutes from "./routes/auth.js";
 
 const app = express();
@@ -17,6 +19,8 @@ app.use(bodyParser.json());
 // Routes
 app.use("/api/ml", mlRoutes);
 app.use("/api/college-insights", CollegeInsightsRoutes);
+app.use("/api/college-finder", CollegeFinderRoutes);
+app.use("/api/jobs", jobsRoutes);
 app.use("/api/auth", authRoutes);
 
 // Health check
