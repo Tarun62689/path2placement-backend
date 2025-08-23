@@ -6,6 +6,9 @@ import mlRoutes from "./routes/PlacementPrediction.js";
 import CollegeInsightsRoutes from "./routes/CollegeInsights.js";
 import CollegeFinderRoutes from "./routes/Collegefinder.js";
 import jobsRoutes from "./routes/jobs.js";
+import resumeAnalyzerRoutes from "./routes/resumeAnalyzer.js";
+import resumeRoutes from "./routes/resume.js";
+import resumeAnalysisFetchRoutes from "./routes/resumeAnalysisFetch.js";
 import authRoutes from "./routes/auth.js";
 
 const app = express();
@@ -21,6 +24,9 @@ app.use("/api/ml", mlRoutes);
 app.use("/api/college-insights", CollegeInsightsRoutes);
 app.use("/api/college-finder", CollegeFinderRoutes);
 app.use("/api/jobs", jobsRoutes);
+app.use("/api/resume-analyzer", resumeAnalyzerRoutes);
+app.use("/api/resume", resumeRoutes);
+app.use("/api/resume-analysis", resumeAnalysisFetchRoutes);
 app.use("/api/auth", authRoutes);
 
 // Health check
