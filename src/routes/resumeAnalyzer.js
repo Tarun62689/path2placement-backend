@@ -14,7 +14,7 @@ router.post("/resume-analyzer", async (req, res) => {
       return res.status(400).json({ error: "resume_path and job_role are required" });
     }
 
-    // ✅ Extract user_id from JWT token
+    // Extract user_id from JWT token
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ error: "No token provided" });
 

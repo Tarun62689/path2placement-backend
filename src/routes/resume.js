@@ -23,7 +23,7 @@ router.post("/upload", upload.single("resume"), async (req, res) => {
 
     // Upload file buffer to Supabase
     const { data, error } = await supabase.storage
-      .from("Resume_files")
+      .from("resumes")
       .upload(filePath, req.file.buffer, {
         contentType: req.file.mimetype,
         upsert: true, // replace old file if exists
@@ -33,7 +33,7 @@ router.post("/upload", upload.single("resume"), async (req, res) => {
 
     // Get public URL (if bucket is public)
     const { data: publicUrl } = supabase.storage
-      .from("Resume_files")
+      .from("resumes")
       .getPublicUrl(filePath);
 
     res.json({
