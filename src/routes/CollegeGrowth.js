@@ -11,7 +11,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 router.post("/growth", (req, res) => {
-  const { topN = 5 } = req.body;
+  const { topN } = req.body || {};
+  const topNumber = parseInt(topN) || 5; // default 5
 
   // OS-specific Python command
   const isWin = process.platform === "win32";
@@ -20,9 +21,9 @@ router.post("/growth", (req, res) => {
   // Path to Python script
   const scriptPath = path.join(__dirname, "../ml/CollegeGrowth.py");
 
-  const args = [scriptPath, String(topN)];
+  const args = [scriptPath, String(topNumber)];
 
-  const python = spawn(pythonCmd, args);
+  const python = spawn(pythonCmd, args, { encoding: "utf-8" });
 
   let output = "";
   let errorOutput = "";
@@ -42,11 +43,11 @@ router.post("/growth", (req, res) => {
     }
 
     try {
-      // Since CollegeGrowth.py prints text instead of JSON,
-      // we can send the raw output as a response
-      res.json({ result: output });
+      // Parse JSON output from Python script
+      const jsonResult = JSON.parse(output);
+      res.json(jsonResult); // send as proper JSON
     } catch (err) {
-      console.error("Failed to parse Python output:", output);
+      console.error("Failed to parse Python output:", output, err);
       res.status(500).json({ error: "Invalid Python response", details: output });
     }
   });
