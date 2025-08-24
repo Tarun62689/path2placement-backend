@@ -1,5 +1,6 @@
-# src/ml/PlacementGrowth.py
+# src/ml/CollegeGrowth.py
 import os
+import sys
 import pandas as pd
 from collections import defaultdict
 from supabase import create_client, Client
@@ -65,24 +66,21 @@ def placement_growth(top_n=5):
 
     results = sorted(results, key=lambda x: x["Growth %"], reverse=True)
 
-    # Display
-    print(f"\n📊 Top {top_n} Colleges by Overall Placement Growth:")
-    print("-" * 70)
-    for i, res in enumerate(results[:top_n], 1):
-        print(f"{i}. {res['College']} | {res['Start Year']} → {res['End Year']} | Growth: {res['Growth %']}% {res['Indicator']}")
-        print("   Placement Trend:", " → ".join([f"{y}:{p:.1f}%" for y, p in res['Trend']]))
+    # Return results as a dict (for JSON)
+    return results[:top_n]
 
 # --------------------------
-# CLI
+# CLI / Node call
 # --------------------------
-def main():
-    print("\n===== Path2Placement – Overall Placement Growth Comparison =====")
+if __name__ == "__main__":
+    # Get topN from command-line arguments, default 5
     try:
-        top_n = int(input("\nHow many colleges? (default 5): ").strip() or 5)
+        top_n = int(sys.argv[1]) if len(sys.argv) > 1 else 5
     except:
         top_n = 5
 
-    placement_growth(top_n)
+    results = placement_growth(top_n)
 
-if __name__ == "__main__":
-    main()
+    # Print JSON so Node.js can parse it
+    import json
+    print(json.dumps(results, indent=2))
