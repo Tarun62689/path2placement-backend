@@ -52,7 +52,7 @@ def download_resume_from_supabase(storage_path: str) -> str:
     Returns a local temp file path.
     """
     try:
-        response = supabase.storage.from_("Resume_files").download(storage_path)
+        response = supabase.storage.from_("resumes").download(storage_path)
         if not response:
             raise Exception(f"File '{storage_path}' not found in Supabase storage")
 
