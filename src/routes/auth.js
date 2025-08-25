@@ -7,7 +7,7 @@ const router = express.Router();
 /**
  * REGISTER
  * - Creates a new user in Supabase Auth
- * - Upserts an entry into profiles table with user_id, name, phone, role, terms acceptance
+ * - Inserts/Upserts an entry into profiles table after Auth user is created
  */
 router.post("/register", async (req, res) => {
   const { fullName, email, phone, password, confirmPassword, agreed } = req.body;
@@ -27,7 +27,7 @@ router.post("/register", async (req, res) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { phone } }, // store phone in auth.users metadata
+      options: { data: { phone } }, // optional: store phone in auth.users metadata
     });
 
     if (error) return res.status(400).json({ error: error.message });
@@ -37,7 +37,10 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "User creation failed" });
     }
 
-    // 4️⃣ Upsert into profiles table
+    // 4️⃣ Wait briefly to ensure user exists in auth.users table
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // 5️⃣ Upsert into profiles table
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .upsert([
