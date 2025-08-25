@@ -7,7 +7,7 @@ const router = express.Router();
 /**
  * REGISTER
  * - Creates a new user in Supabase Auth
- * - Inserts a profile after user creation (avoiding FK issues)
+ * - Inserts a profile after user creation
  */
 router.post("/register", async (req, res) => {
   const { fullName, email, phone, password, confirmPassword, agreed } = req.body;
@@ -27,20 +27,19 @@ router.post("/register", async (req, res) => {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { phone } }, // optional metadata
+      options: { data: { phone } },
     });
 
     if (authError) return res.status(400).json({ error: authError.message });
-
     const user = authData.user;
-    if (!user || !user.id) return res.status(400).json({ error: "User creation failed" });
+    if (!user?.id) return res.status(400).json({ error: "User creation failed" });
 
-    // 4️⃣ Insert profile after ensuring user exists in auth.users
+    // 4️⃣ Insert profile in RLS-enabled table
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .insert([
         {
-          user_id: user.id,    // FK points to auth.users
+          user_id: user.id,
           name: fullName,
           phone: phone || "",
           role: "student",
@@ -52,7 +51,6 @@ router.post("/register", async (req, res) => {
 
     if (profileError) return res.status(400).json({ error: profileError.message });
 
-    // 5️⃣ Return response
     res.json({ user, profile: profileData, message: "Registration successful" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -61,8 +59,6 @@ router.post("/register", async (req, res) => {
 
 /**
  * LOGIN
- * - Signs user in with email/password
- * - Returns session & user
  */
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
@@ -75,30 +71,22 @@ router.post("/login", async (req, res) => {
 
     if (error) return res.status(400).json({ error: error.message });
 
-    res.json({
-      session: data.session,
-      user: data.user,
-    });
+    res.json({ session: data.session, user: data.user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 /**
- * PROFILE
- * - Requires Bearer token
- * - Fetches user & profile info
+ * GET PROFILE
  */
 router.get("/profile", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "No token provided" });
 
   try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-
-    if (error || !user) {
-      return res.status(401).json({ error: error?.message || "Invalid token" });
-    }
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) return res.status(401).json({ error: userError?.message || "Invalid token" });
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -106,9 +94,7 @@ router.get("/profile", async (req, res) => {
       .eq("user_id", user.id)
       .single();
 
-    if (profileError) {
-      return res.status(400).json({ error: profileError.message });
-    }
+    if (profileError) return res.status(400).json({ error: profileError.message });
 
     res.json({ user, profile });
   } catch (err) {
@@ -118,8 +104,6 @@ router.get("/profile", async (req, res) => {
 
 /**
  * UPDATE PROFILE
- * - Requires Bearer token
- * - Updates profile fields (name, role, phone, etc.)
  */
 router.put("/profile", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
@@ -129,10 +113,7 @@ router.put("/profile", async (req, res) => {
 
   try {
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-
-    if (userError || !user) {
-      return res.status(401).json({ error: userError?.message || "Invalid token" });
-    }
+    if (userError || !user) return res.status(401).json({ error: userError?.message || "Invalid token" });
 
     const { data: updatedProfile, error: updateError } = await supabase
       .from("profiles")
@@ -141,9 +122,7 @@ router.put("/profile", async (req, res) => {
       .select()
       .single();
 
-    if (updateError) {
-      return res.status(400).json({ error: updateError.message });
-    }
+    if (updateError) return res.status(400).json({ error: updateError.message });
 
     res.json({ profile: updatedProfile });
   } catch (err) {
@@ -153,19 +132,11 @@ router.put("/profile", async (req, res) => {
 
 /**
  * LOGOUT
- * - Requires Bearer token
- * - Signs user out (revokes refresh token)
  */
 router.post("/logout", async (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "No token provided" });
-
   try {
     const { error } = await supabase.auth.signOut();
-
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
+    if (error) return res.status(400).json({ error: error.message });
 
     res.json({ message: "Successfully logged out" });
   } catch (err) {
