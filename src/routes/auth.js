@@ -13,46 +13,51 @@ router.post("/register", async (req, res) => {
   const { fullName, email, phone, password, confirmPassword, agreed } = req.body;
 
   try {
-    // 1. Validate password match
+    // Validate password
     if (password !== confirmPassword) {
       return res.status(400).json({ error: "Passwords do not match" });
     }
 
-    // 2. Check terms acceptance
     if (!agreed) {
       return res.status(400).json({ error: "You must accept the Terms & Conditions" });
     }
 
-    // 3. Sign up user in Supabase Auth
+    // Sign up user
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      phone, // optional, Supabase Auth supports phone if enabled
+      options: {
+        data: { phone },
+      },
     });
 
     if (error) return res.status(400).json({ error: error.message });
     const user = data.user;
 
-    // 4. Insert into profiles table
-    if (user) {
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .insert([
-          {
-            user_id: user.id,
-            name: fullName,
-            phone: phone || "",
-            role: "student",        // default role
-            terms_accepted: agreed, // true
-          },
-        ]);
-
-      if (profileError) {
-        return res.status(400).json({ error: profileError.message });
-      }
+    if (!user || !user.id) {
+      return res.status(400).json({ error: "User creation failed" });
     }
 
-    res.json({ user, message: "Registration successful" });
+    // Insert into profiles table
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .insert([
+        {
+          user_id: user.id,
+          name: fullName,
+          phone: phone || "",
+          role: "student",
+          terms_accepted: agreed,
+        },
+      ])
+      .select()
+      .single();
+
+    if (profileError) {
+      return res.status(400).json({ error: profileError.message });
+    }
+
+    res.json({ user, profile: profileData, message: "Registration successful" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
