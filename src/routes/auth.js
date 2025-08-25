@@ -7,7 +7,7 @@ const router = express.Router();
 /**
  * REGISTER
  * - Creates a new user in Supabase Auth
- * - Inserts/Upserts an entry into profiles table after Auth user is created
+ * - Inserts a profile after user creation (avoiding FK issues)
  */
 router.post("/register", async (req, res) => {
   const { fullName, email, phone, password, confirmPassword, agreed } = req.body;
@@ -24,41 +24,35 @@ router.post("/register", async (req, res) => {
     }
 
     // 3️⃣ Sign up user in Supabase Auth
-    const { data, error } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { phone } }, // optional: store phone in auth.users metadata
+      options: { data: { phone } }, // optional metadata
     });
 
-    if (error) return res.status(400).json({ error: error.message });
-    const user = data.user;
+    if (authError) return res.status(400).json({ error: authError.message });
 
-    if (!user || !user.id) {
-      return res.status(400).json({ error: "User creation failed" });
-    }
+    const user = authData.user;
+    if (!user || !user.id) return res.status(400).json({ error: "User creation failed" });
 
-    // 4️⃣ Wait briefly to ensure user exists in auth.users table
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // 5️⃣ Upsert into profiles table
+    // 4️⃣ Insert profile after ensuring user exists in auth.users
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
-      .upsert([
+      .insert([
         {
-          user_id: user.id,
+          user_id: user.id,    // FK points to auth.users
           name: fullName,
           phone: phone || "",
           role: "student",
           terms_accepted: agreed,
         }
-      ], { onConflict: "user_id" })
+      ])
       .select()
       .single();
 
-    if (profileError) {
-      return res.status(400).json({ error: profileError.message });
-    }
+    if (profileError) return res.status(400).json({ error: profileError.message });
 
+    // 5️⃣ Return response
     res.json({ user, profile: profileData, message: "Registration successful" });
   } catch (err) {
     res.status(500).json({ error: err.message });
