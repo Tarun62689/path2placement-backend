@@ -7,28 +7,27 @@ const router = express.Router();
 /**
  * REGISTER
  * - Creates a new user in Supabase Auth
- * - Inserts an entry into profiles table with user_id, name, phone, role, terms acceptance
+ * - Upserts an entry into profiles table with user_id, name, phone, role, terms acceptance
  */
 router.post("/register", async (req, res) => {
   const { fullName, email, phone, password, confirmPassword, agreed } = req.body;
 
   try {
-    // Validate password
+    // 1️⃣ Validate password match
     if (password !== confirmPassword) {
       return res.status(400).json({ error: "Passwords do not match" });
     }
 
+    // 2️⃣ Check terms acceptance
     if (!agreed) {
       return res.status(400).json({ error: "You must accept the Terms & Conditions" });
     }
 
-    // Sign up user
+    // 3️⃣ Sign up user in Supabase Auth
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { phone },
-      },
+      options: { data: { phone } }, // store phone in auth.users metadata
     });
 
     if (error) return res.status(400).json({ error: error.message });
@@ -38,18 +37,18 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "User creation failed" });
     }
 
-    // Insert into profiles table
+    // 4️⃣ Upsert into profiles table
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
-      .insert([
+      .upsert([
         {
           user_id: user.id,
           name: fullName,
           phone: phone || "",
           role: "student",
           terms_accepted: agreed,
-        },
-      ])
+        }
+      ], { onConflict: "user_id" })
       .select()
       .single();
 
@@ -94,7 +93,7 @@ router.post("/login", async (req, res) => {
  * - Fetches user & profile info
  */
 router.get("/profile", async (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1]; // Bearer <token>
+  const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "No token provided" });
 
   try {
@@ -161,7 +160,7 @@ router.put("/profile", async (req, res) => {
  * - Signs user out (revokes refresh token)
  */
 router.post("/logout", async (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1]; // Bearer <token>
+  const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "No token provided" });
 
   try {
@@ -176,6 +175,5 @@ router.post("/logout", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 export default router;
