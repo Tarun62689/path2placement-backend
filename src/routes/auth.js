@@ -13,21 +13,19 @@ router.post("/register", async (req, res) => {
   const { fullName, email, phone, password, confirmPassword, agreed } = req.body;
 
   try {
-    // 1️⃣ Validate password match
     if (password !== confirmPassword) {
       return res.status(400).json({ error: "Passwords do not match" });
     }
-
-    // 2️⃣ Check terms acceptance
     if (!agreed) {
       return res.status(400).json({ error: "You must accept the Terms & Conditions" });
     }
 
-    // 3️⃣ Sign up user in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // 1️⃣ Create user
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      options: { data: { phone } },
+      user_metadata: { phone },
+      email_confirm: true, // optional: automatically confirm email
     });
 
     if (authError) return res.status(400).json({ error: authError.message });
@@ -35,7 +33,7 @@ router.post("/register", async (req, res) => {
     const user = authData.user;
     if (!user?.id) return res.status(400).json({ error: "User creation failed" });
 
-    // 4️⃣ Insert profile in RLS-enabled table
+    // 2️⃣ Insert profile (service role bypasses RLS)
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .insert([
@@ -57,6 +55,7 @@ router.post("/register", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 /**
  * LOGIN
