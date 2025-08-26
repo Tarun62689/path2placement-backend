@@ -31,6 +31,7 @@ router.post("/register", async (req, res) => {
     });
 
     if (authError) return res.status(400).json({ error: authError.message });
+
     const user = authData.user;
     if (!user?.id) return res.status(400).json({ error: "User creation failed" });
 
@@ -71,7 +72,12 @@ router.post("/login", async (req, res) => {
 
     if (error) return res.status(400).json({ error: error.message });
 
-    res.json({ session: data.session, user: data.user });
+    // ✅ Return access_token so frontend can use it in Authorization header
+    res.json({
+      token: data.session?.access_token,
+      refreshToken: data.session?.refresh_token,
+      user: data.user,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -85,9 +91,13 @@ router.get("/profile", async (req, res) => {
   if (!token) return res.status(401).json({ error: "No token provided" });
 
   try {
+    // ✅ Validate token & get user
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) return res.status(401).json({ error: userError?.message || "Invalid token" });
+    if (userError || !user) {
+      return res.status(401).json({ error: userError?.message || "Invalid token" });
+    }
 
+    // ✅ Fetch user profile from profiles table
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("*")
