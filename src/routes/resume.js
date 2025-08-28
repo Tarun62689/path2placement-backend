@@ -25,34 +25,40 @@ router.post("/upload", upload.single("resume"), async (req, res) => {
 
     if (listError) throw listError;
 
-    // Step 2: Check if the same file already exists
+    // Step 2: Prevent duplicate uploads
     if (existingFiles.find((f) => f.name === req.file.originalname)) {
       return res.status(400).json({
         error: "File already exists. Please rename your file and try again.",
       });
     }
 
-    // Step 3: Upload file buffer to Supabase
+    // Step 3: Upload file
     const filePath = `${user_id}/${req.file.originalname}`;
-    const { data, error } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from("resumes")
       .upload(filePath, req.file.buffer, {
         contentType: req.file.mimetype,
-        upsert: false, // do not overwrite existing file
+        upsert: false,
       });
 
-    if (error) throw error;
+    if (uploadError) throw uploadError;
 
-    // Step 4: Get public URL
-    const { data: publicUrl } = supabase.storage
-      .from("resumes")
-      .getPublicUrl(filePath);
+    // Step 4: Create signed URL (inline view, 1 hour expiry)
+    const { data: signedData, error: signedError } =
+      await supabase.storage.from("resumes").createSignedUrl(filePath, 3600, {
+        transform: {
+          // ensures the browser treats it inline if possible
+          download: false,
+        },
+      });
+
+    if (signedError) throw signedError;
 
     res.json({
       message: "Resume uploaded successfully",
       filePath,
       originalName: req.file.originalname,
-      publicUrl: publicUrl.publicUrl,
+      signedUrl: signedData.signedUrl, // open this in new tab
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
