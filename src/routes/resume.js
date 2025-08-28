@@ -18,20 +18,32 @@ router.post("/upload", upload.single("resume"), async (req, res) => {
   }
 
   try {
-    // File path: user_id/originalFileName.pdf
-    const filePath = `${user_id}/${req.file.originalname}`;
+    // Step 1: List existing files for the user
+    const { data: existingFiles, error: listError } = await supabase.storage
+      .from("resumes")
+      .list(user_id);
 
-    // Upload file buffer to Supabase
+    if (listError) throw listError;
+
+    // Step 2: Check if the same file already exists
+    if (existingFiles.find((f) => f.name === req.file.originalname)) {
+      return res.status(400).json({
+        error: "File already exists. Please rename your file and try again.",
+      });
+    }
+
+    // Step 3: Upload file buffer to Supabase
+    const filePath = `${user_id}/${req.file.originalname}`;
     const { data, error } = await supabase.storage
       .from("resumes")
       .upload(filePath, req.file.buffer, {
         contentType: req.file.mimetype,
-        upsert: true, // replace old file if exists
+        upsert: false, // do not overwrite existing file
       });
 
     if (error) throw error;
 
-    // Get public URL (if bucket is public)
+    // Step 4: Get public URL
     const { data: publicUrl } = supabase.storage
       .from("resumes")
       .getPublicUrl(filePath);
