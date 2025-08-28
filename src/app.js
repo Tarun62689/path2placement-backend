@@ -16,8 +16,27 @@ const app = express();
 
 dotenv.config();
 
+// ✅ CORS Configuration
+const allowedOrigins = [
+  "http://localhost:5173", // React dev
+  "http://localhost:3000", // in case you run React on 3000
+  "https://path2placement-frontend.onrender.com", // your deployed frontend
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true, // allow cookies/auth headers
+  })
+);
+
 // Middlewares
-app.use(cors());
 app.use(bodyParser.json());
 
 // Routes
