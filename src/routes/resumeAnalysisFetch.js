@@ -5,9 +5,9 @@ import { supabase } from "../services/supabaseClient.js";
 const router = express.Router();
 
 /**
- * GET all resume analyses for the logged-in user
+ * ✅ GET all resume analyses for the logged-in user
  */
-router.get("/fetch-analysis", async (req, res) => {
+router.get("/fetch-analysis", async (req, res) => { 
   try {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ error: "No token provided" });
@@ -32,7 +32,7 @@ router.get("/fetch-analysis", async (req, res) => {
 });
 
 /**
- * PUT update a resume analysis by ID
+ * ✅ PUT update a resume analysis by ID
  */
 router.put("/update-analysis/:id", async (req, res) => {
   try {
@@ -45,7 +45,6 @@ router.put("/update-analysis/:id", async (req, res) => {
     const { id } = req.params;
     const { type, data } = req.body; // fields to update
 
-    // Update only analyses belonging to the logged-in user
     const { data: updatedAnalysis, error } = await supabase
       .from("resume_analysis")
       .update({ type, data })
