@@ -7,7 +7,7 @@ const router = express.Router();
 /**
  * REGISTER
  * - Creates a new user in Supabase Auth
- * - Inserts a profile after user creation
+ * - Inserts a profile using Service Role (bypassing RLS)
  */
 router.post("/register", async (req, res) => {
   const { fullName, email, phone, password, confirmPassword, agreed } = req.body;
@@ -20,20 +20,20 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "You must accept the Terms & Conditions" });
     }
 
-    // 1️⃣ Create user
+    // 1️⃣ Create user in Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
       user_metadata: { phone },
-      email_confirm: true, // optional: automatically confirm email
+      email_confirm: true, // auto-confirm email
     });
 
     if (authError) return res.status(400).json({ error: authError.message });
-
     const user = authData.user;
     if (!user?.id) return res.status(400).json({ error: "User creation failed" });
 
-    // 2️⃣ Insert profile (service role bypasses RLS)
+    // 2️⃣ Insert profile using Service Role key (bypassing RLS)
+    // Note: This uses your server-side supabase client initialized with SERVICE_ROLE_KEY
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .insert([
@@ -43,7 +43,7 @@ router.post("/register", async (req, res) => {
           phone: phone || "",
           role: "student",
           terms_accepted: agreed,
-        }
+        },
       ])
       .select()
       .single();
