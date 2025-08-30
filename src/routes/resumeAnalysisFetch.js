@@ -17,7 +17,7 @@ router.get("/fetch-analysis", async (req, res) => {
 
     const { data, error } = await supabase
       .from("resume_analysis")
-      .select("id, type, data, created_at") // 🔒 return only useful fields
+      .select("id, result, created_at, job_role, resume_path") // ✅ only existing fields
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
@@ -45,22 +45,22 @@ router.put("/update-analysis/:id", async (req, res) => {
     if (userError || !user) return res.status(401).json({ error: "Invalid token" });
 
     const { id } = req.params;
-    const { type, data } = req.body;
+    const { result, job_role } = req.body;
 
-    if (!type && !data) {
+    if (!result && !job_role) {
       return res.status(400).json({ error: "Nothing to update" });
     }
 
     const updateFields = {};
-    if (type) updateFields.type = type;
-    if (data) updateFields.data = data;
+    if (result) updateFields.result = result;
+    if (job_role) updateFields.job_role = job_role;
 
     const { data: updatedAnalysis, error } = await supabase
       .from("resume_analysis")
       .update(updateFields)
       .eq("id", id)
       .eq("user_id", user.id)
-      .select("id, type, data, created_at") // 🔒 return only safe fields
+      .select("id, result, job_role, created_at") // ✅ only valid fields
       .single();
 
     if (error) return res.status(400).json({ error: error.message });
