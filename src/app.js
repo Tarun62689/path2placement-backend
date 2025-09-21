@@ -20,7 +20,8 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173", // React dev
   "http://localhost:3000", // fallback React dev port
-  "https://path2placement-frontend.onrender.com", // deployed frontend
+  "https://path2placement-frontend.onrender.com",
+  "https://path2placement.netlify.app", // deployed frontend
 ];
 
 app.use(
