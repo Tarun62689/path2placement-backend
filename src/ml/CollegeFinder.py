@@ -14,7 +14,8 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("Missing Supabase credentials! Add them to .env")
+    print(json.dumps({"error": "Missing Supabase credentials"}))
+    sys.exit(1)
 
 # --------------------------
 # Supabase client
@@ -35,10 +36,6 @@ data['Year'] = data['Year'].astype(str).str.strip().str.split('-').str[-1]
 
 # Allowed courses
 courses = ['CSE', 'ECE', 'ME', 'EEE', 'OVERALL']
-
-# Extract unique cities and states
-cities = sorted(data['City'].dropna().unique())
-states = sorted(data['State'].dropna().unique())
 
 # --------------------------
 # Helper Functions
@@ -68,7 +65,7 @@ def process_college_data(location, course, top_n=5):
             if (record.get('City', '').lower() == loc or record.get('State', '').lower() == loc)
         ]
         if not data_records:
-            raise ValueError(f"No colleges found in location: {location}")
+            return []
 
     # Aggregate college info
     college_data = defaultdict(lambda: {
@@ -127,82 +124,20 @@ def process_college_data(location, course, top_n=5):
     return results[:top_n]
 
 # --------------------------
-# Interactive CLI
+# Main: read sys.argv
 # --------------------------
-def main():
-    print("\n===== Path2Placement College Finder =====")
-
-    # Location selection
-    print("\nChoose a location type:")
-    print("1. All India")
-    print("2. By City")
-    print("3. By State")
-    loc_choice = input("Enter choice: ").strip()
-
-    if loc_choice == "1":
-        location = "all"
-    elif loc_choice == "2":
-        print("\nAvailable Cities:")
-        for i, city in enumerate(cities, 1):
-            print(f"{i}. {city}")
-        try:
-            city_choice = int(input("Enter city number: "))
-            location = cities[city_choice - 1]
-        except:
-            print("Invalid choice, defaulting to All India.")
-            location = "all"
-    elif loc_choice == "3":
-        print("\nAvailable States:")
-        for i, state in enumerate(states, 1):
-            print(f"{i}. {state}")
-        try:
-            state_choice = int(input("Enter state number: "))
-            location = states[state_choice - 1]
-        except:
-            print("Invalid choice, defaulting to All India.")
-            location = "all"
-    else:
-        print("Invalid choice, defaulting to All India.")
-        location = "all"
-
-    # Course selection
-    print("\nChoose a course:")
-    for i, c in enumerate(courses, 1):
-        print(f"{i}. {c}")
-    try:
-        course_choice = int(input("Enter choice: "))
-        course = courses[course_choice - 1]
-    except:
-        print("Invalid choice, defaulting to OVERALL.")
-        course = "OVERALL"
-
-    # Top N
-    try:
-        top_n = int(input("\nHow many top colleges? (default 5): ").strip() or 5)
-    except:
-        top_n = 5
-
-    # Process
-    results = process_college_data(location, course, top_n)
-
-    # Display table
-    print(f"\n🏆 Top {len(results)} Colleges for {course} in {location if location!='all' else 'India'}")
-    print("-" * 85)
-    print(f"{'Rank':<6} {'College':<35} {'NIRF':<6} {'Avg Placement':<15} {'Avg Salary':<12} {'Max Package':<12}")
-    print("-" * 85)
-    for i, college in enumerate(results, 1):
-        print(f"{i:<6} {college['College'][:34]:<35} {college['NIRF Rank']:<6.0f} "
-              f"{college['Average Placement (%)']:<15.2f} {college['Average Salary (LPA)']:<12.2f} "
-              f"{college['Highest Package (LPA)']:<12.2f}")
-    print("-" * 85)
-
-    # Detailed info
-    for i, college in enumerate(results, 1):
-        print(f"\n📌 Details for Rank {i}: {college['College']}")
-        print("📈 Placement Trend (Year → %):")
-        for year, pct in college['Placement Trend']:
-            print(f"  {year}: {pct:.2f}%")
-        print(f"🏢 Top Recruiters: {college['Top Recruiters']}")
-
 if __name__ == "__main__":
-    main()
+    try:
+        location = sys.argv[1] if len(sys.argv) > 1 else "all"
+        course = sys.argv[2] if len(sys.argv) > 2 else "OVERALL"
+        top_n = int(sys.argv[3]) if len(sys.argv) > 3 else 5
+    except Exception as e:
+        print(json.dumps({"error": str(e)}))
+        sys.exit(1)
+
+    try:
+        results = process_college_data(location, course, top_n)
+        print(json.dumps(results))
+    except Exception as e:
+        print(json.dumps({"error": str(e)}))
+        sys.exit(1)
