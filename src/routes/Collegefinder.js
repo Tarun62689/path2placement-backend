@@ -1,4 +1,4 @@
-// src/routes/Collegefinder.js
+// src/routes/CollegeFinder.js
 import express from "express";
 import { spawn } from "child_process";
 import path from "path";
@@ -24,38 +24,44 @@ router.post("/finder", (req, res) => {
   // Path to Python script
   const scriptPath = path.join(__dirname, "../ml/CollegeFinder.py");
 
-  // Use "null" for empty locations so Python script handles it
-  const locationArg = location.trim() === "" ? "null" : location.trim();
-  const topNArg = String(topN);
+  // Arguments to pass to Python
+  const args = [scriptPath, location || "null", course, String(topN)];
 
-  const args = [scriptPath, locationArg, course, topNArg];
+  console.log("Running Python script:", pythonCmd, args);
 
-  const python = spawn(pythonCmd, args);
+  const pythonProcess = spawn(pythonCmd, args);
 
   let output = "";
   let errorOutput = "";
 
-  python.stdout.on("data", (data) => {
+  pythonProcess.stdout.on("data", (data) => {
     output += data.toString();
   });
 
-  python.stderr.on("data", (data) => {
+  pythonProcess.stderr.on("data", (data) => {
     errorOutput += data.toString();
   });
 
-  python.on("close", (code) => {
-    if (code !== 0) {
-      console.error("Python script error:", errorOutput);
-      return res.status(500).json({ error: "Python script failed", details: errorOutput });
+  pythonProcess.on("close", (code) => {
+    console.log("Python process exited with code:", code);
+    if (errorOutput) console.error("Python stderr:", errorOutput);
+    if (!output) {
+      return res.status(500).json({ error: "No output from Python script" });
     }
 
     try {
       const jsonResult = JSON.parse(output);
       res.json(jsonResult);
     } catch (err) {
-      console.error("Failed to parse Python output:", output);
-      res.status(500).json({ error: "Invalid Python response", details: output });
+      console.error("Failed to parse JSON:", err);
+      console.log("Raw Python output:", output);
+      res.status(500).json({ error: "Invalid JSON output from Python script", rawOutput: output });
     }
+  });
+
+  pythonProcess.on("error", (err) => {
+    console.error("Failed to start Python process:", err);
+    res.status(500).json({ error: "Failed to start Python script", details: err.message });
   });
 });
 
